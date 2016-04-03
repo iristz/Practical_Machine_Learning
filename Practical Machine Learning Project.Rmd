@@ -1,0 +1,110 @@
+---
+title: "Practical Machine Learning Project"
+output: html_document
+---
+
+##Background
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here " http://groupware.les.inf.puc-rio.br/har" (see the section on the Weight Lifting Exercise Dataset).
+
+## Data Source
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+## Download and Load Data
+
+```{r}
+
+library(caret)
+
+traindata <- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testdata<- "http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+
+training <- read.csv(url(traindata), na.strings=c("NA","#DIV/0!",""))
+testing <- read.csv(url(testdata), na.strings=c("NA","#DIV/0!",""))
+
+
+```
+
+##Data Cleaning
+Clean data before partioning. Removing NA from the dataset to increase the accuracy
+
+```{r}
+cols.without.na <- names(testing[,colSums(is.na(testing)) == 0])[8:59]
+training <-training[, c(cols.without.na,"classe")]
+testing <- testing[,c(cols.without.na,"problem_id")]
+dim(training); dim(testing)
+```
+
+
+##Partion training dataset
+```{r}
+inTrain <- createDataPartition(y=training$classe, p=0.6, list=FALSE)
+mytraining <- training[inTrain, ]; mytesting <- training[-inTrain, ]
+dim(mytraining); dim(mytesting)
+```
+
+clean the NearZeroVariance Variables
+
+```{r}
+nzv <- nearZeroVar(mytraining, saveMetrics=TRUE)
+mytraining <- mytraining[,nzv$nzv==FALSE]
+
+nzv<- nearZeroVar(mytesting,saveMetrics=TRUE)
+mytesting <- mytesting[,nzv$nzv==FALSE]
+```
+
+##Prediction
+### Decision Tree
+
+First we test with the basic decision tree
+```{r}
+library(rpart)
+library(rpart.plot)
+library(rattle)
+
+Test1_DT<-rpart(classe~., data=mytraining, method="class")
+fancyRpartPlot(Test1_DT)
+
+```
+
+Then run prediction model and use confusion matrix to test results.
+```{r}
+library(RColorBrewer)
+Prediction1<-predict(Test1_DT, mytesting, type ="class")
+confusionMatrix(Prediction1, mytesting$classe)
+
+```
+From the matrix we can see the accuarcy is only 0.75. We would like to try some other predictions before making the final decision.
+
+### Randome Forest
+Now test the Randome Forest method and see if it is better than decision tree.
+
+```{r}
+library(randomForest)
+Test2<-randomForest(classe~. , data=mytraining)
+Test2_RF<-predict(Test2, mytesting, type="class")
+confusionMatrix(Test2_RF, mytesting$classe)
+```
+
+From the output, we can see the accuracy is around 0.99, which is much higher than the decision tree.
+Random Forest provides better results.
+
+
+#Assignment File
+
+Use Random Forest to get the test set.
+
+```{r}
+Test2_RF_2<- predict(Test2, testing, type="class")
+Test2_RF_2
+```
+
+
